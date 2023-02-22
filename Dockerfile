@@ -1,44 +1,14 @@
-# using ubuntu LTS version
-FROM ubuntu:20.04 AS builder-image
+# Use the official Python image as the base image
+FROM python:3.8
 
-# avoid stuck build due to user prompt
-ARG DEBIAN_FRONTEND=noninteractive
+# Set the working directory in the container
+WORKDIR /app
 
-RUN apt-get update && apt-get install --no-install-recommends -y python3.9 python3.9-dev python3.9-venv python3-pip python3-wheel build-essential && \
-	apt-get clean && rm -rf /var/lib/apt/lists/*
+# Copy the application files into the working directory
+COPY . /app
 
-# create and activate virtual environment
-# using final folder name to avoid path issues with packages
-RUN python3.9 -m venv /home/myuser/venv
-ENV PATH="/home/myuser/venv/bin:$PATH"
+# Install the application dependencies
+RUN pip install -r requirements.txt
 
-# install requirements
-RUN pip3 install -U wheel
-RUN pip3 install -U setuptools
-RUN pip3 install -U pyhgf
-RUN pip3 install -U bokeh
-
-FROM ubuntu:20.04 AS runner-image
-RUN apt-get update && apt-get install --no-install-recommends -y python3.9 python3-venv && \
-	apt-get clean && rm -rf /var/lib/apt/lists/*
-
-RUN useradd --create-home myuser
-COPY --from=builder-image /home/myuser/venv /home/myuser/venv
-
-USER myuser
-RUN mkdir /home/myuser/code
-WORKDIR /home/myuser/code
-COPY . .
-
-EXPOSE 5000
-
-# make sure all messages always reach console
-ENV PYTHONUNBUFFERED=1
-
-# activate virtual environment
-ENV VIRTUAL_ENV=/home/myuser/venv
-ENV PATH="/home/myuser/venv/bin:$PATH"
-
-# /dev/shm is mapped to shared memory and should be used for gunicorn heartbeat
-# this will improve performance and avoid random freezes
-CMD bokeh serve --show app/
+# Define the entry point for the container
+CMD ["bokeh", "serve", "--show" ".app/"]
